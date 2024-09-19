@@ -1,11 +1,7 @@
-# Matias-Arguelllo-57205
--- Crear la base de datos
-CREATE DATABASE PedidosYaDB;
+CREATE DATABASE FlashDmartsDB;
 
--- Usar la base de datos
-USE PedidosYaDB;
+USE FlashDmartsDB;
 
--- Tabla Clientes
 CREATE TABLE Clientes (
     ID_Cliente INT PRIMARY KEY,
     Nombre VARCHAR(100),
@@ -14,14 +10,12 @@ CREATE TABLE Clientes (
     Localidad VARCHAR(100)
 );
 
--- Tabla Proveedores
 CREATE TABLE Proveedores (
     ID_Supplier INT PRIMARY KEY,
     Nombre VARCHAR(100),
     Localidad VARCHAR(100)
 );
 
--- Tabla Productos
 CREATE TABLE Productos (
     ID_SKU INT PRIMARY KEY,
     Nombre VARCHAR(100),
@@ -33,9 +27,9 @@ CREATE TABLE Productos (
     FOREIGN KEY (ID_Proveedor) REFERENCES Proveedores(ID_Supplier)
 );
 
--- Tabla Ventas
 CREATE TABLE Ventas (
     ID_Order INT PRIMARY KEY,
+    Fecha DATE,
     Monto_Total DECIMAL(10,2),
     Localidad VARCHAR(100),
     ID_Cliente INT,
@@ -43,7 +37,6 @@ CREATE TABLE Ventas (
     FOREIGN KEY (ID_Cliente) REFERENCES Clientes(ID_Cliente)
 );
 
--- Tabla Detalle_Venta para manejar la relación muchos-a-muchos
 CREATE TABLE Detalle_Venta (
     ID_Order INT,
     ID_SKU INT,
@@ -52,3 +45,29 @@ CREATE TABLE Detalle_Venta (
     FOREIGN KEY (ID_Order) REFERENCES Ventas(ID_Order),
     FOREIGN KEY (ID_SKU) REFERENCES Productos(ID_SKU)
 );
+
+ALTER TABLE Ventas
+ADD CONSTRAINT fk_cliente FOREIGN KEY (ID_Cliente) REFERENCES Clientes(ID_Cliente);
+
+ALTER TABLE Productos
+ADD CONSTRAINT fk_proveedor FOREIGN KEY (ID_Proveedor) REFERENCES Proveedores(ID_Supplier);
+
+
+SHOW CREATE TABLE Clientes;
+SHOW CREATE TABLE Proveedores;
+SHOW CREATE TABLE Productos;
+SHOW CREATE TABLE Ventas;
+SHOW CREATE TABLE Detalle_Venta;
+
+SELECT * from clientes;
+SELECT * FROM detalle_venta;
+SELECT * FROM productos;
+SELECT * FROM ventas;
+SELECT * FROM proveedores;
+
+DESCRIBE clientes;
+DESCRIBE detalle_venta;
+DESCRIBE productos;
+DESCRIBE ventas;
+DESCRIBE proveedores;
+
