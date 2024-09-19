@@ -1,0 +1,51 @@
+CREATE VIEW SO_month AS
+SELECT v.ID_Order, v.Fecha, c.Nombre AS Cliente, p.Nombre AS Producto, dv.Cantidad, v.Monto_Total
+FROM Ventas v
+JOIN detalle_venta dv ON v.ID_Order = dv.ID_Order
+JOIN Clientes c ON v.ID_Cliente = c.ID_Cliente
+JOIN Productos p ON dv.ID_SKU = p.ID_SKU;
+
+SELECT * FROM SO_month 
+WHERE Fecha BETWEEN '2023-03-01' AND '2023-03-31';
+
+CREATE VIEW SO_supplier AS
+SELECT p.Nombre AS Proveedor, SUM(v.Monto_Total) AS Total_Ventas
+FROM Ventas v
+JOIN Detalle_Venta dv ON v.ID_Order = dv.ID_Order
+JOIN Productos prod ON dv.ID_SKU = prod.ID_SKU
+JOIN Proveedores p ON prod.ID_Proveedor = p.ID_Supplier
+GROUP BY p.Nombre;
+
+SELECT * FROM SO_supplier;
+
+CREATE VIEW Units_sold_Cliente AS
+SELECT c.Nombre AS Cliente, SUM(dv.Cantidad) AS Total_Unidades
+FROM Ventas v
+JOIN Detalle_Venta dv ON v.ID_Order = dv.ID_Order
+JOIN Clientes c ON v.ID_Cliente = c.ID_Cliente
+GROUP BY c.Nombre;
+
+SELECT * FROM Units_sold_Cliente;
+
+CREATE VIEW Gross_sales AS
+SELECT SUM(Monto_Total) AS Total_Facturacion
+FROM Ventas;
+
+SELECT * FROM Gross_sales;
+
+CREATE VIEW Surtido_Actual AS
+SELECT p.Nombre AS Proveedor, COUNT(prod.ID_SKU) AS Cantidad_SKU
+FROM Proveedores p
+JOIN Productos prod ON p.ID_Supplier = prod.ID_Proveedor
+GROUP BY p.Nombre;
+
+SELECT * FROM Surtido_Actual;
+
+SELECT obtener_stock_total_categoria('Hogar');
+
+SELECT calcular_total_ventas_cliente_categoria(1, 'Electrónica');
+
+CALL actualizar_localidad_cliente(1, 'Rosario');
+
+CALL actualizar_costo_y_precio_producto(512, 1500, 3000, @mensaje);
+SELECT @mensaje;
