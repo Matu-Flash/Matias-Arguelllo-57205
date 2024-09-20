@@ -1,0 +1,323 @@
+CREATE DATABASE FlashDmartsDB0000;
+
+USE FlashDmartsDB0000;
+
+CREATE TABLE Clientes (
+    ID_Cliente INT PRIMARY KEY,
+    Nombre VARCHAR(100),
+    Telefono VARCHAR(15),
+    Edad INT,
+    Localidad VARCHAR(100)
+);
+
+CREATE TABLE Proveedores (
+    ID_Supplier INT PRIMARY KEY,
+    Nombre VARCHAR(100),
+    Localidad VARCHAR(100)
+);
+
+CREATE TABLE Productos (
+    ID_SKU INT PRIMARY KEY,
+    Nombre VARCHAR(100),
+    Costo DECIMAL(10,2),
+    Stock INT,
+    Categoria VARCHAR(50),
+    ID_Proveedor INT,
+    Precio DECIMAL(10,2),
+    FOREIGN KEY (ID_Proveedor) REFERENCES Proveedores(ID_Supplier)
+);
+
+CREATE TABLE Ventas (
+    ID_Order INT PRIMARY KEY,
+    Fecha DATE,
+    Monto_Total DECIMAL(10,2),
+    Localidad VARCHAR(100),
+    ID_Cliente INT,
+    Cantidad INT,
+    FOREIGN KEY (ID_Cliente) REFERENCES Clientes(ID_Cliente)
+);
+
+CREATE TABLE Detalle_Venta (
+    ID_Order INT,
+    ID_SKU INT,
+    Cantidad INT,
+    PRIMARY KEY (ID_Order, ID_SKU),
+    FOREIGN KEY (ID_Order) REFERENCES Ventas(ID_Order),
+    FOREIGN KEY (ID_SKU) REFERENCES Productos(ID_SKU)
+);
+
+ALTER TABLE Ventas
+ADD CONSTRAINT fk_cliente FOREIGN KEY (ID_Cliente) REFERENCES Clientes(ID_Cliente);
+
+ALTER TABLE Productos
+ADD CONSTRAINT fk_proveedor FOREIGN KEY (ID_Proveedor) REFERENCES Proveedores(ID_Supplier);
+
+
+SHOW CREATE TABLE Clientes;
+SHOW CREATE TABLE Proveedores;
+SHOW CREATE TABLE Productos;
+SHOW CREATE TABLE Ventas;
+SHOW CREATE TABLE Detalle_Venta;
+
+SELECT * from clientes;
+SELECT * FROM detalle_venta;
+SELECT * FROM productos;
+SELECT * FROM ventas;
+SELECT * FROM proveedores;
+
+DESCRIBE clientes;
+DESCRIBE detalle_venta;
+DESCRIBE productos;
+DESCRIBE ventas;
+DESCRIBE proveedores;
+
+##Insertamos los datos exportando 5 archivos CSV:
+##clientes_sql
+##proveedores_sql
+##productos_sql
+##ventas
+##detalle_ventas
+
+##CREAMOS LAS 5 VISTAS
+
+CREATE VIEW SO_month AS
+SELECT v.ID_Order, v.Fecha, c.Nombre AS Cliente, p.Nombre AS Producto, dv.Cantidad, v.Monto_Total
+FROM Ventas v
+JOIN detalle_venta dv ON v.ID_Order = dv.ID_Order
+JOIN Clientes c ON v.ID_Cliente = c.ID_Cliente
+JOIN Productos p ON dv.ID_SKU = p.ID_SKU;
+
+SELECT * FROM SO_month 
+WHERE Fecha BETWEEN '2023-03-01' AND '2023-03-31';
+
+CREATE VIEW SO_supplier AS
+SELECT p.Nombre AS Proveedor, SUM(v.Monto_Total) AS Total_Ventas
+FROM Ventas v
+JOIN Detalle_Venta dv ON v.ID_Order = dv.ID_Order
+JOIN Productos prod ON dv.ID_SKU = prod.ID_SKU
+JOIN Proveedores p ON prod.ID_Proveedor = p.ID_Supplier
+GROUP BY p.Nombre;
+
+SELECT * FROM SO_supplier;
+
+CREATE VIEW Units_sold_Cliente AS
+SELECT c.Nombre AS Cliente, SUM(dv.Cantidad) AS Total_Unidades
+FROM Ventas v
+JOIN Detalle_Venta dv ON v.ID_Order = dv.ID_Order
+JOIN Clientes c ON v.ID_Cliente = c.ID_Cliente
+GROUP BY c.Nombre;
+
+SELECT * FROM Units_sold_Cliente;
+
+CREATE VIEW Gross_sales AS
+SELECT SUM(Monto_Total) AS Total_Facturacion
+FROM Ventas;
+
+SELECT * FROM Gross_sales;
+
+CREATE VIEW Surtido_Actual AS
+SELECT p.Nombre AS Proveedor, COUNT(prod.ID_SKU) AS Cantidad_SKU
+FROM Proveedores p
+JOIN Productos prod ON p.ID_Supplier = prod.ID_Proveedor
+GROUP BY p.Nombre;
+
+SELECT * FROM Surtido_Actual;
+
+
+##CREAMOS 3 FUNCIONES
+
+DELIMITER //
+
+CREATE FUNCTION UnidadesPorCategoria(categoria VARCHAR(50))
+RETURNS INT
+DETERMINISTIC
+BEGIN
+    DECLARE totalUnidades INT DEFAULT 0;
+    
+    SELECT SUM(Stock) INTO totalUnidades
+    FROM Productos
+    WHERE Categoria = categoria;
+    
+    RETURN totalUnidades;
+END //
+
+DELIMITER ;
+
+SELECT UnidadesPorCategoria('Belleza') AS UnidadesEnBelleza;
+
+DELIMITER //
+
+CREATE FUNCTION VentasPorClienteCategoria(cliente_id INT, categoria VARCHAR(50))
+RETURNS DECIMAL(10,2)
+DETERMINISTIC
+BEGIN
+    DECLARE totalVentas DECIMAL(10,2) DEFAULT 0.00;
+
+    SELECT SUM(v.Monto_Total) INTO totalVentas
+    FROM Ventas v
+    JOIN Detalle_Venta dv ON v.ID_Order = dv.ID_Order
+    JOIN Productos p ON dv.ID_SKU = p.ID_SKU
+    WHERE v.ID_Cliente = cliente_id AND p.Categoria = categoria;
+
+    RETURN totalVentas;
+END //
+
+DELIMITER ;
+
+SELECT VentasPorClienteCategoria(1, 'Belleza') AS TotalVentasBelleza;
+
+DELIMITER //
+
+CREATE FUNCTION ContribucionClienteCategoria(cliente_id INT, categoria VARCHAR(50))
+RETURNS DECIMAL(10,4)
+DETERMINISTIC
+BEGIN
+    DECLARE ventasCliente DECIMAL(10,2) DEFAULT 0.00;
+    DECLARE totalVentasCategoria DECIMAL(10,2) DEFAULT 0.00;
+    DECLARE porcentaje DECIMAL(10,4) DEFAULT 0.0000;
+
+    -- Calcular ventas totales del cliente en la categoría
+    SELECT SUM(v.Monto_Total) INTO ventasCliente
+    FROM Ventas v
+    JOIN Detalle_Venta dv ON v.ID_Order = dv.ID_Order
+    JOIN Productos p ON dv.ID_SKU = p.ID_SKU
+    WHERE v.ID_Cliente = cliente_id AND p.Categoria = categoria;
+
+    -- Calcular ventas totales en la categoría
+    SELECT SUM(v.Monto_Total) INTO totalVentasCategoria
+    FROM Ventas v
+    JOIN Detalle_Venta dv ON v.ID_Order = dv.ID_Order
+    JOIN Productos p ON dv.ID_SKU = p.ID_SKU
+    WHERE p.Categoria = categoria;
+
+    -- Calcular el porcentaje de contribución
+    IF totalVentasCategoria > 0 THEN
+        SET porcentaje = (ventasCliente / totalVentasCategoria) * 100;
+    ELSE
+        SET porcentaje = 0;
+    END IF;
+
+    RETURN porcentaje;
+END //
+
+DELIMITER ;
+
+SELECT ContribucionClienteCategoria(1, 'Belleza') AS ContribucionPorcentaje;
+
+-- Creamos Stored Procedures
+
+DELIMITER //
+
+CREATE PROCEDURE ActualizarDatosCliente(
+    IN cliente_id INT,
+    IN nuevo_telefono VARCHAR(15),
+    IN nueva_localidad VARCHAR(100)
+)
+BEGIN
+    UPDATE Clientes
+    SET Telefono = nuevo_telefono, Localidad = nueva_localidad
+    WHERE ID_Cliente = cliente_id;
+END //
+
+DELIMITER ;
+
+CALL ActualizarDatosCliente(1, '123-456-7890', 'Nueva Localidad');
+
+DELIMITER ;
+
+CALL ActualizarDatosCliente(1, '123-456-7890', 'Nueva Localidad');
+
+DELIMITER //
+
+CREATE PROCEDURE ActualizarCostoPrecioProducto(
+    IN producto_id INT,
+    IN nuevo_costo DECIMAL(10,2),
+    IN nuevo_precio DECIMAL(10,2)
+)
+BEGIN
+    UPDATE Productos
+    SET Costo = nuevo_costo, Precio = nuevo_precio
+    WHERE ID_SKU = producto_id;
+END //
+
+DELIMITER ;
+
+CALL ActualizarCostoPrecioProducto(123, 150.00, 299.99);
+
+##CREAMOS LOS TRIGGER
+
+DELIMITER //
+
+CREATE TRIGGER ActualizarStockVenta
+AFTER INSERT ON Detalle_Venta
+FOR EACH ROW
+BEGIN
+    UPDATE Productos
+    SET Stock = Stock - NEW.Cantidad
+    WHERE ID_SKU = NEW.ID_SKU;
+END //
+
+DELIMITER ;
+
+##CREAMOS LA TABLA DE AUDITORIADEPRODUCTOS
+
+CREATE TABLE AuditoriaProductos (
+    Auditoria_ID INT AUTO_INCREMENT PRIMARY KEY,
+    ID_SKU INT,
+    Costo_Antiguo DECIMAL(10,2),
+    Costo_Nuevo DECIMAL(10,2),
+    Precio_Antiguo DECIMAL(10,2),
+    Precio_Nuevo DECIMAL(10,2),
+    Fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+##Trigger para Registrar los Cambios:
+
+DELIMITER //
+
+CREATE TRIGGER AuditoriaCostoPrecio
+BEFORE UPDATE ON Productos
+FOR EACH ROW
+BEGIN
+    IF OLD.Costo <> NEW.Costo OR OLD.Precio <> NEW.Precio THEN
+        INSERT INTO AuditoriaProductos (ID_SKU, Costo_Antiguo, Costo_Nuevo, Precio_Antiguo, Precio_Nuevo)
+        VALUES (OLD.ID_SKU, OLD.Costo, NEW.Costo, OLD.Precio, NEW.Precio);
+    END IF;
+END //
+
+DELIMITER ;
+
+##TRIGGER DE VENTAS
+
+CREATE TABLE AuditoriaVentas (
+    Auditoria_ID INT AUTO_INCREMENT PRIMARY KEY,
+    ID_Order INT,
+    ID_Cliente INT,
+    Monto_Total DECIMAL(10,2),
+    Fecha_Venta DATE,
+    Usuario VARCHAR(100),
+    Fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+DELIMITER //
+
+CREATE TRIGGER RegistrarVenta
+AFTER INSERT ON Ventas
+FOR EACH ROW
+BEGIN
+    INSERT INTO AuditoriaVentas (
+        ID_Order, ID_Cliente, Monto_Total, Fecha_Venta, Usuario
+    )
+    VALUES (
+        NEW.ID_Order, NEW.ID_Cliente, NEW.Monto_Total, NEW.Fecha, USER()
+    );
+END //
+
+DELIMITER ;
+
+
+
+
+
+
+
+
