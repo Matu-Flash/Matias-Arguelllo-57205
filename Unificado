@@ -314,6 +314,37 @@ END //
 
 DELIMITER ;
 
+SELECT c.Nombre AS Cliente, p.Categoria, SUM(dv.Cantidad) AS Unidades_Vendidas, SUM(v.Monto_Total) AS Total_Ventas
+FROM Ventas v
+JOIN Detalle_Venta dv ON v.ID_Order = dv.ID_Order
+JOIN Productos p ON dv.ID_SKU = p.ID_SKU
+JOIN Clientes c ON v.ID_Cliente = c.ID_Cliente
+GROUP BY c.Nombre, p.Categoria
+ORDER BY Total_Ventas DESC;
+
+SELECT p.Categoria, p.Nombre AS Producto, SUM(dv.Cantidad) AS Unidades_Vendidas, SUM(v.Monto_Total) AS Total_Ventas
+FROM Ventas v
+JOIN Detalle_Venta dv ON v.ID_Order = dv.ID_Order
+JOIN Productos p ON dv.ID_SKU = p.ID_SKU
+GROUP BY p.Categoria, p.Nombre
+ORDER BY p.Categoria, Unidades_Vendidas DESC;
+
+
+SELECT pr.Nombre AS Proveedor, p.Nombre AS Producto, SUM(dv.Cantidad) AS Unidades_Vendidas, SUM(v.Monto_Total) AS Total_Ventas
+FROM Ventas v
+JOIN Detalle_Venta dv ON v.ID_Order = dv.ID_Order
+JOIN Productos p ON dv.ID_SKU = p.ID_SKU
+JOIN Proveedores pr ON p.ID_Proveedor = pr.ID_Supplier
+GROUP BY pr.Nombre, p.Nombre
+ORDER BY pr.Nombre, Total_Ventas DESC;
+
+SELECT c.Nombre AS Cliente, SUM(v.Monto_Total) AS Total_Facturacion
+FROM Ventas v
+JOIN Clientes c ON v.ID_Cliente = c.ID_Cliente
+GROUP BY c.Nombre
+ORDER BY Total_Facturacion DESC
+LIMIT 10;
+
 
 
 
